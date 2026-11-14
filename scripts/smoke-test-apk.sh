@@ -73,8 +73,10 @@ screen_size() {
 tap() {
   local label=$1 point x y width height top bottom mid
   read -r width height < <(screen_size)
+  # Stay clear of the status bar and the navigation bar. A centre just above
+  # the bar still misses the button, which is what happened at y=585 on 640px.
   top=48
-  bottom=$((height - 48))
+  bottom=$((height - 96))
   mid=$((width / 2))
   for _ in 1 2 3 4 5 6; do
     point=$(node_center "$label")

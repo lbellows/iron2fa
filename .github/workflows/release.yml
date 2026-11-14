@@ -219,6 +219,9 @@ jobs:
           api-level: 30
           arch: x86_64
           target: default
+          # The default skin is 320x640. The add form then ends on the
+          # navigation bar, and a tap on Save hits the bar instead of the button.
+          profile: pixel_2
           disable-animations: true
           script: ./scripts/smoke-test-apk.sh "$(ls dist/*-x86_64.apk)"
 
