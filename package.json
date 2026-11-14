@@ -1,0 +1,54 @@
+{
+  "name": "tumbler",
+  "main": "index.ts",
+  "version": "1.0.0",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "prebuild": "expo prebuild --platform android --no-install --clean",
+    "prebuild:check": "./scripts/check-release-metadata.sh",
+    "changelogs": "./scripts/sync-changelogs.sh",
+    "desktop:build": "expo export --platform web --output-dir desktop/dist",
+    "desktop": "electron42 desktop"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "~57.0.18",
+    "@noble/ciphers": "^1.3.0",
+    "@noble/hashes": "^1.8.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@scure/base": "^1.2.6",
+    "expo": "~57.0.27",
+    "expo-clipboard": "~57.0.2",
+    "expo-document-picker": "~57.0.3",
+    "expo-file-system": "~57.0.7",
+    "expo-secure-store": "~57.0.4",
+    "expo-sharing": "~57.0.26",
+    "expo-splash-screen": "~57.0.11",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-get-random-values": "~1.11.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-web": "^0.21.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@react-native/jest-preset": "^0.86.2",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "~57.0.0",
+    "jest": "^30.5.1",
+    "jest-expo": "~57.0.5",
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "jest": {
+    "preset": "jest-expo"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "tumbler",
+  "productName": "Tumbler",
+  "version": "1.0.0",
+  "main": "main.js",
+  "private": true
+}

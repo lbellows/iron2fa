@@ -1,0 +1,20 @@
+Tumbler generates the six-digit codes that two-factor sign-ins ask for. It works entirely offline: the app requests no Android permissions at all, not even network access, so your secrets cannot leave the device unless you export them.
+
+<b>Features</b>
+
+• Time-based codes (TOTP) with SHA-1, SHA-256 and SHA-512, 4–10 digits and any period
+• Steam Guard codes
+• Import a Proton Authenticator export, with or without a password
+• Export to the same format, optionally password-encrypted (Argon2id + AES-256-GCM) — a backup Proton Authenticator can read back
+• Add accounts by setup key or by pasting an otpauth:// link
+• Tap a code to copy it; search once the list grows
+
+<b>Storage</b>
+
+Accounts are encrypted with AES-256-GCM under a key held in the Android Keystore, and are excluded from Android's cloud backup. Use Export to make your own backup: if you lose the phone without one, the accounts are gone.
+
+<b>Not included</b>
+
+No QR scanner (it would need the camera permission), no cloud sync, no accounts, no analytics, no advertising.
+
+A desktop build of the same app, for Linux, lives in the source repository.
