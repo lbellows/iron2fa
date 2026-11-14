@@ -37,29 +37,69 @@ wait_for() {
   exit 1
 }
 
-# tap <exact text or content-desc of a node>
-tap() {
-  local point
-  point=$(dump | python3 -c '
+# Centre of the first node labelled $1, as "x y". Empty when nothing matches.
+# A text field and its caption carry the same words: the field has them as
+# content-desc, the caption as text. Prefer the field, or the tap lands on the
+# caption and nothing gets focus.
+node_center() {
+  dump | python3 -c '
 import re, sys, html
 want = sys.argv[1]
 nodes = [{k: html.unescape(v) for k, v in re.findall(r"([\w-]+)=\"([^\"]*)\"", node)}
          for node in re.findall(r"<node [^>]*>", sys.stdin.read())]
-# A text field and its visible caption carry the same words: the field has them
-# as content-desc, the caption as text. Prefer the field, or the tap lands on
-# the caption and nothing gets focus.
 hits = [n for n in nodes if n.get("content-desc") == want] or [n for n in nodes if n.get("text") == want]
-if hits:
-    x1, y1, x2, y2 = map(int, re.findall(r"\d+", hits[0]["bounds"]))
-    print((x1 + x2) // 2, (y1 + y2) // 2)
-' "$1")
-  if [ -z "$point" ]; then
-    echo "::error::nothing on screen is labelled '$1'."
-    screen_texts
-    exit 1
-  fi
-  # shellcheck disable=SC2086
-  adb shell input tap $point
+if not hits:
+    sys.exit(0)
+x1, y1, x2, y2 = map(int, re.findall(r"\d+", hits[0]["bounds"]))
+print((x1 + x2) // 2, (y1 + y2) // 2)
+' "$1"
+}
+
+# "width height" of the display the taps land on.
+screen_size() {
+  adb shell wm size | tr -d '\r' | awk '
+    /Override size:/ { o = $3 }
+    /Physical size:/ { p = $3 }
+    END {
+      s = (o ? o : p)
+      split(s, a, "x")
+      print a[1], a[2]
+    }'
+}
+
+# tap <exact text or content-desc of a node>
+# The UI dump lists nodes that are scrolled off the 320x640 emulator, and a tap
+# at those coordinates hits nothing. Scroll until the centre is on the display.
+tap() {
+  local label=$1 point x y width height top bottom mid
+  read -r width height < <(screen_size)
+  top=48
+  bottom=$((height - 48))
+  mid=$((width / 2))
+  for _ in 1 2 3 4 5 6; do
+    point=$(node_center "$label")
+    if [ -z "$point" ]; then
+      echo "::error::nothing on screen is labelled '$label'."
+      screen_texts
+      exit 1
+    fi
+    read -r x y <<<"$point"
+    if [ "$y" -gt "$top" ] && [ "$y" -lt "$bottom" ]; then
+      echo "tap '$label' at $x $y"
+      adb shell input tap "$x" "$y"
+      return 0
+    fi
+    echo "'$label' is at $x $y on a ${width}x${height} display; scrolling it into view"
+    if [ "$y" -ge "$bottom" ]; then
+      adb shell input swipe "$mid" $((height * 3 / 4)) "$mid" $((height / 3)) 300
+    else
+      adb shell input swipe "$mid" $((height / 3)) "$mid" $((height * 3 / 4)) 300
+    fi
+    sleep 1
+  done
+  echo "::error::'$label' stayed off the ${width}x${height} display."
+  screen_texts
+  exit 1
 }
 
 adb wait-for-device
@@ -75,12 +115,24 @@ wait_for 'Add account'
 tap 'Setup key or otpauth:// link'
 adb shell "input text 'otpauth://totp/Smoke:test?secret=JBSWY3DPEHPK3PXP'"
 wait_for 'text="otpauth://totp/Smoke:test\?secret=JBSWY3DPEHPK3PXP"'
-# The soft keyboard covers Save on a small screen, and the UI dump still lists
-# the button underneath it, so ask the input method whether it is showing. Back
-# closes it; with no keyboard up, Back would leave the form instead.
-if adb shell dumpsys input_method | grep -q 'mInputShown=true'; then
+# The soft keyboard covers Save, and the UI dump still lists the button
+# underneath it, so a tap there hits the keyboard. Back closes the keyboard;
+# with none showing, Back leaves the form instead. A slow emulator shows the
+# keyboard a few seconds after the text lands, so wait for it to report itself.
+ime_shown=0
+for _ in 1 2 3 4 5 6 7 8; do
+  if adb shell dumpsys input_method | tr -d '\r' | grep -q 'mInputShown=true'; then
+    ime_shown=1
+    break
+  fi
+  sleep 1
+done
+if [ "$ime_shown" = 1 ]; then
+  echo "closing the soft keyboard"
   adb shell input keyevent 4
-  sleep 2
+  sleep 1
+else
+  echo "soft keyboard was not shown"
 fi
 tap 'Save'
 # Back on the list, with the new account and a six-digit code.
