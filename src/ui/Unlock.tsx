@@ -25,7 +25,7 @@ export function Unlock(props: { creating: boolean; onSubmit: (passphrase: string
 
   return (
     <View>
-      <Header title="Tumbler" />
+      <Header title="Iron2FA" />
       <Text style={s.body}>
         {props.creating
           ? 'Choose a passphrase. It encrypts your accounts on this computer and is asked for every time the app opens. It cannot be recovered, so keep an export somewhere safe.'

@@ -1,4 +1,4 @@
-Tumbler generates the six-digit codes that two-factor sign-ins ask for. It works entirely offline: the app requests no Android permissions at all, not even network access, so your secrets cannot leave the device unless you export them.
+Iron2FA generates the six-digit codes that two-factor sign-ins ask for. It works entirely offline: the app requests no Android permissions at all, not even network access, so your secrets cannot leave the device unless you export them.
 
 <b>Features</b>
 

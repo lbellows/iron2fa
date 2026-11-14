@@ -1,6 +1,6 @@
 {
-  "name": "tumbler",
-  "productName": "Tumbler",
+  "name": "iron2fa",
+  "productName": "Iron2FA",
   "version": "1.0.0",
   "main": "main.js",
   "private": true

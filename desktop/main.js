@@ -5,7 +5,7 @@
  *
  * The bundle is served from a private app:// scheme rather than file://, so
  * its absolute asset paths resolve and localStorage (where the encrypted vault
- * lives, under ~/.config/Tumbler) has a stable origin. Every other request is
+ * lives, under ~/.config/Iron2FA) has a stable origin. Every other request is
  * refused: the app needs no network, so it gets none.
  */
 const { app, BrowserWindow, net, protocol, session, shell } = require('electron');
@@ -13,7 +13,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const DIST = path.join(__dirname, 'dist');
-const ORIGIN = 'app://tumbler';
+const ORIGIN = 'app://iron2fa';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
@@ -34,7 +34,7 @@ if (!app.requestSingleInstanceLock()) {
     protocol.handle('app', (request) => {
       const url = new URL(request.url);
       const file = path.normalize(path.join(DIST, decodeURIComponent(url.pathname)));
-      if (url.host !== 'tumbler' || (file !== DIST && !file.startsWith(DIST + path.sep))) {
+      if (url.host !== 'iron2fa' || (file !== DIST && !file.startsWith(DIST + path.sep))) {
         return new Response('Not found', { status: 404 });
       }
       return net.fetch(pathToFileURL(file === DIST ? path.join(DIST, 'index.html') : file).toString());
@@ -54,9 +54,9 @@ if (!app.requestSingleInstanceLock()) {
       height: 760,
       minWidth: 340,
       minHeight: 480,
-      backgroundColor: '#0f172a',
+      backgroundColor: '#14161a',
       autoHideMenuBar: true,
-      title: 'Tumbler',
+      title: 'Iron2FA',
       icon: path.join(__dirname, 'icon.png'),
       webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
     });

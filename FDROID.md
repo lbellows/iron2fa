@@ -1,4 +1,4 @@
-# Releasing Tumbler
+# Releasing Iron2FA
 
 A `v*` tag makes `.github/workflows/release.yml` build one signed, minified APK
 per ABI, check each is single-ABI, permission-free, signed and under 30 MB,
@@ -24,9 +24,9 @@ does everything except publish.
 
 | | |
 |---|---|
-| Keystore | `~/.android-signing/tumbler-release.keystore` (PKCS12) |
-| Password | `~/.android-signing/tumbler-release.password` |
-| Alias | `tumbler` |
+| Keystore | `~/.android-signing/iron2fa-release.keystore` (PKCS12) |
+| Password | `~/.android-signing/iron2fa-release.password` |
+| Alias | `iron2fa` |
 
 Neither file is in this repository. The repository secrets
 `ANDROID_KEYSTORE_BASE64`, `ANDROID_STORE_PASSWORD` and `ANDROID_KEY_PASSWORD`

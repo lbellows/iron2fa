@@ -1,4 +1,4 @@
-# Tumbler
+# Iron2FA
 
 An offline two-factor authenticator (TOTP and Steam Guard) for Android, with a
 Linux desktop build of the same code. Written with Expo (TypeScript).
@@ -13,7 +13,7 @@ Linux desktop build of the same code. Written with Expo (TypeScript).
 ## Install
 
 Android: add the F-Droid repository at <https://lbellows.github.io/fdroid/>, or
-take an APK from [Releases](https://github.com/lbellows/tumbler/releases).
+take an APK from [Releases](https://github.com/lbellows/iron2fa/releases).
 
 Desktop (Linux, needs a system Electron — `electron42` on Arch/Artix):
 
@@ -23,12 +23,12 @@ npm run desktop:build     # web bundle into desktop/dist
 npm run desktop           # electron42 desktop
 ```
 
-The vault is kept in Electron's profile, `~/.config/Tumbler`. The window is
+The vault is kept in Electron's profile, `~/.config/Iron2FA`. The window is
 served from a private `app://` scheme and every other request is refused.
 
 ## Moving accounts
 
-In Proton Authenticator: Settings → Export. In Tumbler: Import / Export →
+In Proton Authenticator: Settings → Export. In Iron2FA: Import / Export →
 Choose export file. Accounts already present are skipped, so importing twice is
 harmless. Counter-based (HOTP) entries are not supported and are reported by
 name.

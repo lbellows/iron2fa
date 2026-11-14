@@ -2,15 +2,15 @@ import React from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 
 export const C = {
-  bg: '#0f172a',
-  card: '#1e293b',
-  line: '#334155',
-  text: '#f1f5f9',
-  dim: '#94a3b8',
-  accent: '#38bdf8',
-  onAccent: '#082f49',
+  bg: '#14161a',
+  card: '#22252b',
+  line: '#3b404a',
+  text: '#f1f3f5',
+  dim: '#9ba3af',
+  accent: '#ff7a1a',
+  onAccent: '#1f0d00',
   danger: '#f87171',
-  warn: '#fbbf24',
+  warn: '#f87171',
 };
 
 export function Button(props: {
@@ -141,7 +141,7 @@ export const s = StyleSheet.create({
   choice: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.line },
   choiceOn: { backgroundColor: C.accent, borderColor: C.accent },
   choiceText: { color: C.text, fontSize: 14, fontWeight: '600' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(2,6,23,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   dialog: { backgroundColor: C.card, borderRadius: 14, padding: 20, width: '100%', maxWidth: 420 },
   dialogTitle: { color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 8 },
   dialogText: { color: C.dim, fontSize: 15, lineHeight: 21, marginBottom: 20 },

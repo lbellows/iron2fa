@@ -1,4 +1,4 @@
-package com.lbellows.tumbler
+package com.irondeveloper.iron2fa
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

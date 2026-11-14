@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "Tumbler",
-    "slug": "tumbler",
+    "name": "Iron2FA",
+    "slug": "iron2fa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0f172a",
+    "backgroundColor": "#14161a",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0f172a"
+        "backgroundColor": "#14161a"
       },
-      "package": "com.lbellows.tumbler",
+      "package": "com.irondeveloper.iron2fa",
       "versionCode": 1,
       "allowBackup": false,
       "permissions": [],
@@ -35,7 +35,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0f172a",
+          "backgroundColor": "#14161a",
           "image": "./assets/splash.png",
           "imageWidth": 200,
           "resizeMode": "contain"

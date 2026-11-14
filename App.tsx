@@ -74,7 +74,7 @@ export default function App() {
   } else if (phase === 'unreadable') {
     content = (
       <View>
-        <Header title="Tumbler" />
+        <Header title="Iron2FA" />
         <Text style={s.error}>The saved accounts cannot be decrypted on this device.</Text>
         <Text style={s.body}>
           This happens when app data is restored without the key that encrypted it. The accounts cannot be recovered

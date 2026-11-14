@@ -18,9 +18,9 @@ import { deriveKey, open, randomBytes, seal } from './core/crypto';
 import { Account } from './core/otp';
 import { exportPlain, importExport } from './core/proton';
 
-const BLOB_KEY = 'tumbler.vault.v1';
-const SECURE_KEY = 'tumbler.vaultkey.v1';
-const AAD = 'tumbler.vault.v1';
+const BLOB_KEY = 'iron2fa.vault.v1';
+const SECURE_KEY = 'iron2fa.vaultkey.v1';
+const AAD = 'iron2fa.vault.v1';
 
 export const usesPassphrase = Platform.OS === 'web';
 

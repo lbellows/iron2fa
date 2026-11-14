@@ -1,0 +1,11 @@
+Categories:
+  - Security
+License: AGPL-3.0-or-later
+AuthorName: The Iron Dev
+Name: Iron2FA
+AutoName: Iron2FA
+SourceCode: https://github.com/lbellows/iron2fa
+IssueTracker: https://github.com/lbellows/iron2fa/issues
+Changelog: https://github.com/lbellows/iron2fa/releases
+CurrentVersion: 1.0.0
+CurrentVersionCode: 13

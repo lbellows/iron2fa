@@ -10,13 +10,13 @@
  *
  * A keystore is configured either by `android/keystore.properties`:
  *
- *   storeFile=/absolute/path/to/tumbler-release.keystore
+ *   storeFile=/absolute/path/to/iron2fa-release.keystore
  *   storePassword=...
- *   keyAlias=tumbler
+ *   keyAlias=iron2fa
  *   keyPassword=...
  *
- * or, for CI, by the env vars TUMBLER_STORE_FILE, TUMBLER_STORE_PASSWORD,
- * TUMBLER_KEY_ALIAS and TUMBLER_KEY_PASSWORD.
+ * or, for CI, by the env vars IRON2FA_STORE_FILE, IRON2FA_STORE_PASSWORD,
+ * IRON2FA_KEY_ALIAS and IRON2FA_KEY_PASSWORD.
  */
 const { withAppBuildGradle } = require('expo/config-plugins');
 
@@ -34,10 +34,10 @@ const SIGNING_CONFIG = `    signingConfigs {
     // Resolve the release keystore from android/keystore.properties, falling back
     // to environment variables so CI can sign without writing the file to disk.
     def keystorePropertiesFile = rootProject.file("keystore.properties")
-    def releaseStoreFile = System.getenv("TUMBLER_STORE_FILE")
-    def releaseStorePassword = System.getenv("TUMBLER_STORE_PASSWORD")
-    def releaseKeyAlias = System.getenv("TUMBLER_KEY_ALIAS")
-    def releaseKeyPassword = System.getenv("TUMBLER_KEY_PASSWORD")
+    def releaseStoreFile = System.getenv("IRON2FA_STORE_FILE")
+    def releaseStorePassword = System.getenv("IRON2FA_STORE_PASSWORD")
+    def releaseKeyAlias = System.getenv("IRON2FA_KEY_ALIAS")
+    def releaseKeyPassword = System.getenv("IRON2FA_KEY_PASSWORD")
     if (keystorePropertiesFile.exists()) {
         def keystoreProperties = new Properties()
         keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }

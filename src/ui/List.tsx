@@ -84,7 +84,7 @@ export function List(props: {
   return (
     <View style={{ flex: 1 }}>
       <Header
-        title="Tumbler"
+        title="Iron2FA"
         right={
           <>
             {props.onLock ? <Button title="Lock" kind="plain" small onPress={props.onLock} /> : null}

@@ -66,7 +66,7 @@ export function Transfer(props: {
     try {
       await new Promise((resolve) => setTimeout(resolve, 50));
       const text = exportPassword ? await exportEncrypted(props.accounts, exportPassword) : exportPlain(props.accounts);
-      await saveTextFile(`Tumbler_export_${new Date().toISOString().slice(0, 10)}.json`, text);
+      await saveTextFile(`Iron2FA_export_${new Date().toISOString().slice(0, 10)}.json`, text);
       setExportPassword('');
     } catch (e) {
       setError(message(e));
@@ -86,7 +86,7 @@ export function Transfer(props: {
         <Text style={s.section}>Import</Text>
         <Text style={s.body}>
           In Proton Authenticator choose Settings → Export, then pick that file here. Exports with and without a
-          password both work, and so do exports made by Tumbler. Accounts you already have are skipped.
+          password both work, and so do exports made by Iron2FA. Accounts you already have are skipped.
         </Text>
         {pending === null ? (
           <Button title="Choose export file" disabled={!!busy} onPress={pick} />
@@ -104,7 +104,7 @@ export function Transfer(props: {
         <Text style={[s.section, { marginTop: 32 }]}>Export</Text>
         <Text style={s.body}>
           Writes every account to one file in Proton Authenticator's format — use it as a backup, or to copy your
-          accounts to Tumbler on another device.
+          accounts to Iron2FA on another device.
         </Text>
         <Field label="Password (recommended)" value={exportPassword} onChangeText={setExportPassword} secureTextEntry
           hint="Without a password the file holds your secrets in plain text: anyone who reads it can generate your codes." />
