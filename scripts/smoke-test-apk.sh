@@ -75,11 +75,12 @@ wait_for 'Add account'
 tap 'Setup key or otpauth:// link'
 adb shell "input text 'otpauth://totp/Smoke:test?secret=JBSWY3DPEHPK3PXP'"
 wait_for 'text="otpauth://totp/Smoke:test\?secret=JBSWY3DPEHPK3PXP"'
-# Back closes the soft keyboard if one is up, so Save is on screen. With no
-# keyboard it leaves the form, hence the check.
-if ! dump | grep -q 'text="Save"'; then
+# The soft keyboard covers Save on a small screen, and the UI dump still lists
+# the button underneath it, so ask the input method whether it is showing. Back
+# closes it; with no keyboard up, Back would leave the form instead.
+if adb shell dumpsys input_method | grep -q 'mInputShown=true'; then
   adb shell input keyevent 4
-  sleep 1
+  sleep 2
 fi
 tap 'Save'
 # Back on the list, with the new account and a six-digit code.
