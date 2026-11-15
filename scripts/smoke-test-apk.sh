@@ -8,6 +8,8 @@
 # and an AES-GCM encrypt/decrypt round trip through storage.
 set -euo pipefail
 
+command -v tesseract >/dev/null || { echo "::error::tesseract is not installed."; exit 1; }
+
 APK=${1:?usage: scripts/smoke-test-apk.sh <apk>}
 PACKAGE=com.irondeveloper.iron2fa
 TIMEOUT_SECONDS=90
@@ -20,7 +22,39 @@ dump() {
 }
 
 screen_texts() {
-  dump | grep -o -E '(text|content-desc)="[^"]+"' || echo "(no dump)"
+  dump | grep -o -E '(text|content-desc)="[^"]+"' || echo "(no dump; read from a screenshot instead)"
+  ocr
+}
+
+# The words on screen, read from a screenshot. uiautomator only dumps a UI that
+# has been still for a full second, and the account list never is: its
+# countdown changes every second. Whether a dump of it ever succeeds is luck.
+ocr() {
+  adb exec-out screencap -p > /tmp/smoke-screen.png && tesseract /tmp/smoke-screen.png stdout 2>/dev/null || true
+}
+
+fail_with_evidence() {
+  echo "--- on screen ---"
+  screen_texts
+  echo
+  echo "--- app log ---"
+  adb logcat -d -s ReactNativeJS:V ReactNative:W AndroidRuntime:E | tail -120
+  echo "--- foreground ---"
+  adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
+  adb exec-out screencap -p > smoke-failure.png || true
+  exit 1
+}
+
+# wait_for_on_list <grep -E pattern matched against the words on screen>
+wait_for_on_list() {
+  for _ in $(seq 1 $((TIMEOUT_SECONDS / 3))); do
+    if ocr | grep -q -E "$1"; then
+      return 0
+    fi
+    sleep 3
+  done
+  echo "::error::'$1' never appeared on the account list within ${TIMEOUT_SECONDS}s."
+  fail_with_evidence
 }
 
 # wait_for <python regex matched against the UI dump>
@@ -32,15 +66,7 @@ wait_for() {
     sleep 3
   done
   echo "::error::'$1' never appeared within ${TIMEOUT_SECONDS}s."
-  echo "--- on screen ---"
-  screen_texts
-  echo
-  echo "--- app log ---"
-  adb logcat -d -s ReactNativeJS:V ReactNative:W AndroidRuntime:E | tail -120
-  echo "--- foreground ---"
-  adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
-  adb exec-out screencap -p > smoke-failure.png || true
-  exit 1
+  fail_with_evidence
 }
 
 # Centre of the first node labelled $1, as "x y". Empty when nothing matches.
@@ -144,14 +170,14 @@ else
 fi
 tap 'Save'
 # Back on the list, with the new account and a six-digit code.
-wait_for 'text="Smoke"'
-wait_for 'text="\d{3} \d{3}"'
+wait_for_on_list 'Smoke'
+wait_for_on_list '[0-9]{3} [0-9]{3}'
 
 # Cold start: the vault has to decrypt with the key held in the Keystore.
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "${PACKAGE}/.MainActivity"
-wait_for 'text="Smoke"'
-wait_for 'text="\d{3} \d{3}"'
+wait_for_on_list 'Smoke'
+wait_for_on_list '[0-9]{3} [0-9]{3}'
 
 if adb logcat -d | grep -q "FATAL EXCEPTION"; then
   echo "::error::The app crashed."
