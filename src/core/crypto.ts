@@ -26,11 +26,24 @@ export function open(key: Uint8Array, sealed: Uint8Array, aad: string): Uint8Arr
   return gcm(key, sealed.subarray(0, NONCE_LENGTH), utf8Encode(aad)).decrypt(sealed.subarray(NONCE_LENGTH));
 }
 
+/** Argon2id cost: memory in KiB, passes, lanes. */
+export interface KdfParams {
+  m: number;
+  t: number;
+  p: number;
+}
+
 /**
- * Argon2id with the parameters Proton Authenticator uses for its
- * password-protected exports (19 MiB, 2 passes, 1 lane, 32-byte key). The same
- * parameters protect the desktop vault, so there is one KDF to reason about.
+ * What Proton Authenticator uses for its password-protected exports (19 MiB,
+ * 2 passes, 1 lane), so it is fixed for reading those. The desktop vault uses
+ * it too.
  */
-export function deriveKey(password: string, salt: Uint8Array): Promise<Uint8Array> {
-  return argon2idAsync(utf8Encode(password), salt, { m: 19 * 1024, t: 2, p: 1, dkLen: 32 });
+export const PROTON_KDF: KdfParams = { m: 19 * 1024, t: 2, p: 1 };
+
+/** For new Iron2FA backups. Written into each file, so changing it does not break old ones. */
+export const BACKUP_KDF: KdfParams = PROTON_KDF;
+
+/** Argon2id to a 32-byte key. */
+export function deriveKey(password: string, salt: Uint8Array, params: KdfParams = PROTON_KDF): Promise<Uint8Array> {
+  return argon2idAsync(utf8Encode(password), salt, { ...params, dkLen: 32 });
 }

@@ -1,4 +1,4 @@
-import { generateCode, parseUri, secondsRemaining, toUri, Account } from '../otp';
+import { generateCode, parseUri, secondsRemaining, Account } from '../otp';
 
 // RFC 6238 Appendix B. The seeds are the ASCII strings "1234567890..." of 20,
 // 32 and 64 bytes, base32-encoded.
@@ -38,6 +38,17 @@ describe('generateCode', () => {
   it('generates Steam codes', () => {
     expect(generateCode(parseUri('steam://STEAMKEY'), 1742298317)).toBe('VKFDN');
     expect(generateCode(parseUri('steam://77776ERUKZ4JVPG66AISEM2EKVTHPCEZ'), 1700000000)).toBe('64YGY');
+  });
+
+  it('reads a Steam secret typed in lowercase as base32, not base64', () => {
+    expect(generateCode(parseUri('steam://77776erukz4jvpg66aisem2ekvthpcez'), 1700000000)).toBe('64YGY');
+    expect(generateCode(parseUri('steam://7777 6eru kz4j vpg6 6ais em2e kvth pcez'), 1700000000)).toBe('64YGY');
+  });
+
+  it('keeps a base64 Steam secret whole when it contains a slash', () => {
+    const secret = 'ABEiM0RVZneImaq7zN3u/z//f/8=';
+    expect(parseUri(`steam://${secret}`).secret).toBe(secret);
+    expect(parseUri('steam://+/8RIjNEVWZ3iJmqu8zd7v8AESI=').secret).toBe('+/8RIjNEVWZ3iJmqu8zd7v8AESI=');
   });
 
   it('counts down within the period', () => {
@@ -81,15 +92,5 @@ describe('parseUri', () => {
     ['otpauth://totp/x?secret=JBSWY3DPEHPK3PXP&period=0', /period/],
   ])('rejects %s', (uri, message) => {
     expect(() => parseUri(uri)).toThrow(message);
-  });
-
-  it('round-trips through toUri', () => {
-    for (const uri of [
-      'otpauth://totp/octo%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=Git%20Hub&algorithm=SHA256&digits=8&period=60',
-      'steam://STEAMKEY',
-    ]) {
-      const a = parseUri(uri, 'fixed');
-      expect(parseUri(toUri(a), 'fixed')).toEqual(a);
-    }
   });
 });

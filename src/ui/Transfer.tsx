@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { Account } from '../core/otp';
-import {
-  BadPassword, exportEncrypted, exportPlain, importExport, isEncryptedExport, mergeAccounts,
-} from '../core/proton';
+import { mergeAccounts, needsPassword, readBackup, writeBackup } from '../core/backup';
+import { BadPassword } from '../core/proton';
 import { pickTextFile, saveTextFile } from '../files';
 import { Button, Field, Header, s } from './widgets';
 
@@ -28,7 +27,7 @@ export function Transfer(props: {
     try {
       // Let the status line paint before the key derivation blocks the thread.
       await new Promise((resolve) => setTimeout(resolve, 50));
-      const { accounts, errors } = await importExport(text, password);
+      const { accounts, errors } = await readBackup(text, password);
       const { merged, added } = mergeAccounts(props.accounts, accounts);
       if (added > 0) await props.onImported(merged);
       const skipped = accounts.length - added;
@@ -52,7 +51,7 @@ export function Transfer(props: {
     try {
       const text = await pickTextFile();
       if (text === null) return;
-      if (isEncryptedExport(text)) setPending(text);
+      if (needsPassword(text)) setPending(text);
       else await finishImport(text);
     } catch (e) {
       setError(message(e));
@@ -65,8 +64,8 @@ export function Transfer(props: {
     setBusy(exportPassword ? 'Encrypting…' : 'Exporting…');
     try {
       await new Promise((resolve) => setTimeout(resolve, 50));
-      const text = exportPassword ? await exportEncrypted(props.accounts, exportPassword) : exportPlain(props.accounts);
-      await saveTextFile(`Iron2FA_export_${new Date().toISOString().slice(0, 10)}.json`, text);
+      const text = await writeBackup(props.accounts, exportPassword || undefined);
+      await saveTextFile(`Iron2FA_backup_${new Date().toISOString().slice(0, 10)}.json`, text);
       setExportPassword('');
     } catch (e) {
       setError(message(e));
@@ -85,14 +84,14 @@ export function Transfer(props: {
 
         <Text style={s.section}>Import</Text>
         <Text style={s.body}>
-          In Proton Authenticator choose Settings → Export, then pick that file here. Exports with and without a
-          password both work, and so do exports made by Iron2FA. Accounts you already have are skipped.
+          Pick an Iron2FA backup, or a Proton Authenticator export (Settings → Export in Proton). Files with and
+          without a password both work. Accounts you already have are skipped.
         </Text>
         {pending === null ? (
-          <Button title="Choose export file" disabled={!!busy} onPress={pick} />
+          <Button title="Choose file" disabled={!!busy} onPress={pick} />
         ) : (
           <>
-            <Field label="Export password" value={importPassword} onChangeText={setImportPassword} secureTextEntry autoFocus
+            <Field label="File password" value={importPassword} onChangeText={setImportPassword} secureTextEntry autoFocus
               onSubmitEditing={() => importPassword && finishImport(pending, importPassword)} />
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <Button title="Cancel" kind="plain" disabled={!!busy} onPress={() => { setPending(null); setImportPassword(''); setError(''); }} />
@@ -103,8 +102,8 @@ export function Transfer(props: {
 
         <Text style={[s.section, { marginTop: 32 }]}>Export</Text>
         <Text style={s.body}>
-          Writes every account to one file in Proton Authenticator's format — use it as a backup, or to copy your
-          accounts to Iron2FA on another device.
+          Writes every account to one Iron2FA backup file — keep it as a backup, or use it to copy your accounts to
+          Iron2FA on another device. Other apps cannot read it.
         </Text>
         <Field label="Password (recommended)" value={exportPassword} onChangeText={setExportPassword} secureTextEntry
           hint="Without a password the file holds your secrets in plain text: anyone who reads it can generate your codes." />

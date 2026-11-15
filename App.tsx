@@ -20,6 +20,8 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'list' });
   const [saveError, setSaveError] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  /** Why the vault did not open, when the reason is something other than a missing or wrong key. */
+  const [openError, setOpenError] = useState('');
 
   const opened = (result: { session: vault.Session; accounts: Account[] }) => {
     setSession(result.session);
@@ -28,12 +30,18 @@ export default function App() {
     setPhase('ready');
   };
 
+  const failed = (e: unknown) => {
+    setOpenError(e instanceof vault.VaultUnreadable ? '' : e instanceof Error ? e.message : String(e));
+    setPhase('unreadable');
+  };
+
   const start = useCallback(async () => {
+    setPhase('loading');
     try {
       if (vault.usesPassphrase) setPhase((await vault.vaultExists()) ? 'locked' : 'create');
       else opened(await vault.openWithDeviceKey());
-    } catch {
-      setPhase('unreadable');
+    } catch (e) {
+      failed(e);
     }
   }, []);
 
@@ -70,27 +78,54 @@ export default function App() {
   if (phase === 'create') {
     content = <Unlock creating onSubmit={async (p) => opened(await vault.createWithPassphrase(p))} />;
   } else if (phase === 'locked') {
-    content = <Unlock creating={false} onSubmit={async (p) => opened(await vault.unlockWithPassphrase(p))} />;
+    content = (
+      <Unlock
+        creating={false}
+        onSubmit={async (p) => {
+          try {
+            opened(await vault.unlockWithPassphrase(p));
+          } catch (e) {
+            // A wrong passphrase is retried on the unlock screen; anything else will not be cured by retyping.
+            if (e instanceof vault.WrongPassphrase) throw e;
+            failed(e);
+          }
+        }}
+      />
+    );
   } else if (phase === 'unreadable') {
     content = (
       <View>
         <Header title="Iron2FA" />
-        <Text style={s.error}>The saved accounts cannot be decrypted on this device.</Text>
-        <Text style={s.body}>
-          This happens when app data is restored without the key that encrypted it. The accounts cannot be recovered
-          from here; start over and import a backup.
-        </Text>
+        {openError ? (
+          <>
+            <Text style={s.error}>The saved accounts could not be opened: {openError}</Text>
+            <Text style={s.body}>
+              This can be temporary, so try again first. Erasing deletes the saved accounts for good; only do it if
+              you have a backup to import.
+            </Text>
+            <View style={{ marginBottom: 12 }}>
+              <Button title="Try again" onPress={start} />
+            </View>
+          </>
+        ) : (
+          <>
+            <Text style={s.error}>The saved accounts cannot be decrypted on this device.</Text>
+            <Text style={s.body}>
+              This happens when the saved data is damaged, or was restored without the key that encrypted it. The
+              accounts cannot be recovered from here; start over and import a backup.
+            </Text>
+          </>
+        )}
         <Button title="Erase and start over" kind="danger" onPress={() => setConfirmReset(true)} />
         <Confirm
           visible={confirmReset}
           title="Erase the saved accounts?"
-          message="The unreadable data is deleted for good."
+          message="The saved data is deleted for good."
           confirmLabel="Erase"
           onCancel={() => setConfirmReset(false)}
           onConfirm={async () => {
             setConfirmReset(false);
             await vault.destroy();
-            setPhase('loading');
             start();
           }}
         />

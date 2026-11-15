@@ -5,7 +5,7 @@ Iron2FA generates the six-digit codes that two-factor sign-ins ask for. It works
 • Time-based codes (TOTP) with SHA-1, SHA-256 and SHA-512, 4–10 digits and any period
 • Steam Guard codes
 • Import a Proton Authenticator export, with or without a password
-• Export to the same format, optionally password-encrypted (Argon2id + AES-256-GCM) — a backup Proton Authenticator can read back
+• Back up to a file, optionally password-encrypted (Argon2id + AES-256-GCM), and restore it on another device
 • Add accounts by setup key or by pasting an otpauth:// link
 • Tap a code to copy it; search once the list grows
 

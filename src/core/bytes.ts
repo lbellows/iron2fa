@@ -63,12 +63,17 @@ export function decodeBase32Secret(secret: string): Uint8Array {
  * Steam secrets are base32 when they come from an otpauth URI and base64 when
  * they come from the Steam app's own files. Proton tries base32 first, then
  * base64, so do the same.
+ *
+ * Base32 is case-insensitive and base64 is not, so a secret with no capitals
+ * is read as base32 typed in lowercase; left alone it fails base32 and then
+ * decodes as base64 to the wrong bytes. A real base64 secret without a single
+ * capital does not happen.
  */
 export function decodeSteamSecret(secret: string): Uint8Array {
-  const trimmed = secret.trim().replace(/=+$/, '');
+  const trimmed = secret.replace(/\s/g, '').replace(/=+$/, '');
   if (!trimmed) throw new Error('The secret is empty');
   try {
-    return base32nopad.decode(trimmed);
+    return base32nopad.decode(/[A-Z]/.test(trimmed) ? trimmed : trimmed.toUpperCase());
   } catch {
     try {
       return base64nopad.decode(trimmed);

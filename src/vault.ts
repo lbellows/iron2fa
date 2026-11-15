@@ -7,16 +7,18 @@
  *   Desktop  a key derived from a passphrase with Argon2id, because a desktop
  *            has no equivalent of the Keystore that every install can rely on.
  *
- * The plaintext is a Proton Authenticator export document, so backup, restore
- * and Proton import all go through the same reader and writer.
+ * The plaintext is the account list as JSON (blob version 2). Version 1 held a
+ * Proton Authenticator export instead, which cannot represent every account:
+ * reading it back cut Steam secrets at a "/" and renamed some accounts. Those
+ * vaults are still read, and are rewritten as version 2 on the next save.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { b64decode, b64encode, utf8Decode, utf8Encode } from './core/bytes';
 import { deriveKey, open, randomBytes, seal } from './core/crypto';
-import { Account } from './core/otp';
-import { exportPlain, importExport } from './core/proton';
+import { Account, isAccount } from './core/otp';
+import { importExport } from './core/proton';
 
 const BLOB_KEY = 'iron2fa.vault.v1';
 const SECURE_KEY = 'iron2fa.vaultkey.v1';
@@ -31,7 +33,7 @@ export interface Session {
 }
 
 interface Blob {
-  v: 1;
+  v: 1 | 2;
   salt?: string;
   data: string;
 }
@@ -51,12 +53,35 @@ export class VaultUnreadable extends Error {
 
 async function readBlob(): Promise<Blob | null> {
   const raw = await AsyncStorage.getItem(BLOB_KEY);
-  return raw ? (JSON.parse(raw) as Blob) : null;
+  if (!raw) return null;
+  let blob: Partial<Blob> | null;
+  try {
+    blob = JSON.parse(raw);
+  } catch {
+    throw new VaultUnreadable();
+  }
+  if (typeof blob !== 'object' || blob === null || typeof blob.data !== 'string') throw new VaultUnreadable();
+  if (blob.v !== 1 && blob.v !== 2) throw new Error('The saved accounts were written by a newer version of Iron2FA');
+  return blob as Blob;
 }
 
-async function decrypt(session: Session, blob: Blob): Promise<Account[]> {
-  const plain = open(session.key, b64decode(blob.data), AAD);
-  return (await importExport(utf8Decode(plain))).accounts;
+/** Throws `wrongKey` when the blob does not decrypt, a plain Error when what it holds cannot be read. */
+async function decrypt(session: Session, blob: Blob, wrongKey: Error): Promise<Account[]> {
+  let text: string;
+  try {
+    text = utf8Decode(open(session.key, b64decode(blob.data), AAD));
+  } catch {
+    throw wrongKey;
+  }
+  if (blob.v === 1) {
+    // Never drop an entry quietly: the next save would make the loss permanent.
+    const { accounts, errors } = await importExport(text);
+    if (errors.length) throw new Error(`Some saved accounts could not be read (${errors.join('; ')})`);
+    return accounts;
+  }
+  const accounts: unknown = JSON.parse(text);
+  if (!Array.isArray(accounts) || !accounts.every(isAccount)) throw new Error('The saved accounts are damaged');
+  return accounts;
 }
 
 export async function vaultExists(): Promise<boolean> {
@@ -65,8 +90,8 @@ export async function vaultExists(): Promise<boolean> {
 
 export async function save(session: Session, accounts: Account[]): Promise<void> {
   const blob: Blob = {
-    v: 1,
-    data: b64encode(seal(session.key, utf8Encode(exportPlain(accounts)), AAD)),
+    v: 2,
+    data: b64encode(seal(session.key, utf8Encode(JSON.stringify(accounts)), AAD)),
   };
   if (session.salt) blob.salt = b64encode(session.salt);
   await AsyncStorage.setItem(BLOB_KEY, JSON.stringify(blob));
@@ -83,11 +108,7 @@ export async function openWithDeviceKey(): Promise<{ session: Session; accounts:
   }
   if (!stored) throw new VaultUnreadable();
   const session = { key: b64decode(stored) };
-  try {
-    return { session, accounts: await decrypt(session, blob) };
-  } catch {
-    throw new VaultUnreadable();
-  }
+  return { session, accounts: await decrypt(session, blob, new VaultUnreadable()) };
 }
 
 /** Desktop, first run. */
@@ -104,14 +125,10 @@ export async function unlockWithPassphrase(passphrase: string): Promise<{ sessio
   if (!blob?.salt) throw new VaultUnreadable();
   const salt = b64decode(blob.salt);
   const session = { key: await deriveKey(passphrase, salt), salt };
-  try {
-    return { session, accounts: await decrypt(session, blob) };
-  } catch {
-    throw new WrongPassphrase();
-  }
+  return { session, accounts: await decrypt(session, blob, new WrongPassphrase()) };
 }
 
-/** Delete everything. Only reachable from the unreadable-vault screen. */
+/** Delete everything. Only reachable from the screen shown when the vault will not open. */
 export async function destroy(): Promise<void> {
   await AsyncStorage.removeItem(BLOB_KEY);
   if (!usesPassphrase) await SecureStore.deleteItemAsync(SECURE_KEY);

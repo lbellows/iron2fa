@@ -1,8 +1,6 @@
 import * as nodeCrypto from 'node:crypto';
 import { generateCode } from '../otp';
-import {
-  BadPassword, PasswordRequired, exportEncrypted, exportPlain, importExport, isEncryptedExport, mergeAccounts,
-} from '../proton';
+import { BadPassword, PasswordRequired, importExport, isEncryptedExport } from '../proton';
 
 // The shape Proton Authenticator writes (serde output of AuthenticatorEntriesExport
 // in proton-authenticator/src/entry/exporter.rs).
@@ -57,16 +55,6 @@ function referenceEncrypt(plain: string, password: string): string {
     version: 1, salt: salt.toString('base64'), content: Buffer.concat([nonce, body]).toString('base64'),
   });
 }
-function referenceDecrypt(exported: string, password: string): string {
-  const doc = JSON.parse(exported);
-  const sealed = Buffer.from(doc.content, 'base64');
-  const decipher = nodeCrypto.createDecipheriv(
-    'aes-256-gcm', referenceKey(password, Buffer.from(doc.salt, 'base64')), sealed.subarray(0, 12));
-  decipher.setAAD(AAD);
-  decipher.setAuthTag(sealed.subarray(sealed.length - 16));
-  return Buffer.concat([decipher.update(sealed.subarray(12, sealed.length - 16)), decipher.final()]).toString('utf8');
-}
-
 describe('plain export', () => {
   it('imports every entry with its id, names and note', async () => {
     const { accounts, errors } = await importExport(PLAIN);
@@ -80,11 +68,6 @@ describe('plain export', () => {
     expect(accounts[2]).toMatchObject({ kind: 'steam', issuer: 'Steam', label: 'gamer' });
     expect(generateCode(accounts[1], 119)).toBe('46119246');
     expect(generateCode(accounts[2], 1742298317)).toBe('VKFDN');
-  });
-
-  it('round-trips byte for byte', async () => {
-    const { accounts } = await importExport(PLAIN);
-    expect(exportPlain(accounts)).toBe(PLAIN);
   });
 
   it('reports a bad entry and still imports the rest', async () => {
@@ -108,30 +91,12 @@ describe('password-protected export', () => {
     expect(isEncryptedExport(PLAIN)).toBe(false);
     const { accounts, errors } = await importExport(encrypted, PASSWORD);
     expect(errors).toEqual([]);
-    expect(exportPlain(accounts)).toBe(PLAIN);
-  });
-
-  it('writes a file Proton can decrypt', async () => {
-    const { accounts } = await importExport(PLAIN);
-    const encrypted = await exportEncrypted(accounts, PASSWORD);
-    expect(referenceDecrypt(encrypted, PASSWORD)).toBe(PLAIN);
-    expect(Buffer.from(JSON.parse(encrypted).salt, 'base64')).toHaveLength(16);
+    expect(accounts).toEqual((await importExport(PLAIN)).accounts);
   });
 
   it('asks for a password, and rejects the wrong one', async () => {
     const encrypted = referenceEncrypt(PLAIN, PASSWORD);
     await expect(importExport(encrypted)).rejects.toBeInstanceOf(PasswordRequired);
     await expect(importExport(encrypted, 'wrong')).rejects.toBeInstanceOf(BadPassword);
-  });
-});
-
-describe('mergeAccounts', () => {
-  it('skips entries already present by id or by secret', async () => {
-    const { accounts } = await importExport(PLAIN);
-    const again = accounts.map((a, i) => (i === 0 ? { ...a, id: 'different-id' } : a));
-    const extra = { ...accounts[0], id: 'new', secret: 'GEZDGNBVGY3TQOJQ' };
-    const { merged, added } = mergeAccounts(accounts, [...again, extra]);
-    expect(added).toBe(1);
-    expect(merged).toHaveLength(4);
   });
 });

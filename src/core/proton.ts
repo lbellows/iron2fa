@@ -1,6 +1,6 @@
 /**
- * Proton Authenticator's export format, which is also this app's own backup
- * format — one file moves accounts between Proton, the phone and the desktop.
+ * Reading Proton Authenticator's export format. Iron2FA does not write it: its
+ * own backups are in backup.ts. Version 1 vaults also held this document.
  *
  * Plain:      {"version":1,"entries":[{"id","content":{"uri","entry_type","name"},"note"}]}
  * Encrypted:  {"version":1,"salt":"<base64>","content":"<base64 nonce||ciphertext>"}
@@ -10,8 +10,8 @@
  * exporter.rs and password_exporter.rs.
  */
 import { b64decode, b64encode, utf8Decode, utf8Encode } from './bytes';
-import { deriveKey, open, randomBytes, seal } from './crypto';
-import { Account, newId, parseUri, toUri } from './otp';
+import { deriveKey, open } from './crypto';
+import { Account, newId, parseUri } from './otp';
 
 const EXPORT_AAD = 'proton.authenticator.export.v1';
 
@@ -114,41 +114,4 @@ export async function importExport(text: string, password?: string): Promise<Imp
     throw new BadPassword();
   }
   return importPlain(parseJson(utf8Decode(plain)));
-}
-
-export function exportPlain(accounts: Account[]): string {
-  const entries: ExportedEntry[] = accounts.map((a) => ({
-    id: a.id,
-    content: {
-      uri: toUri(a),
-      entry_type: a.kind === 'steam' ? 'Steam' : 'Totp',
-      name: a.label || a.issuer || null,
-    },
-    note: a.note || null,
-  }));
-  return JSON.stringify({ version: 1, entries });
-}
-
-export async function exportEncrypted(accounts: Account[], password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const key = await deriveKey(password, salt);
-  const sealed = seal(key, utf8Encode(exportPlain(accounts)), EXPORT_AAD);
-  return JSON.stringify({ version: 1, salt: b64encode(salt), content: b64encode(sealed) });
-}
-
-/** Add `incoming` to `existing`, skipping anything already present by id or by secret. */
-export function mergeAccounts(existing: Account[], incoming: Account[]): { merged: Account[]; added: number } {
-  const ids = new Set(existing.map((a) => a.id));
-  const uris = new Set(existing.map(toUri));
-  const merged = [...existing];
-  let added = 0;
-  for (const account of incoming) {
-    const uri = toUri(account);
-    if (ids.has(account.id) || uris.has(uri)) continue;
-    ids.add(account.id);
-    uris.add(uri);
-    merged.push(account);
-    added++;
-  }
-  return { merged, added };
 }

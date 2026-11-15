@@ -76,7 +76,11 @@ export function List(props: {
   }, [props.accounts, query]);
 
   const copy = async (id: string, code: string) => {
-    await Clipboard.setStringAsync(code);
+    try {
+      await Clipboard.setStringAsync(code);
+    } catch {
+      return; // no "Copied" when nothing was copied
+    }
     setCopiedId(id);
     setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1200);
   };

@@ -38,7 +38,7 @@ export function Edit(props: {
         if (issuer.trim()) account.issuer = issuer.trim();
         if (label.trim()) account.label = label.trim();
       } else if (kind === 'Steam') {
-        account = { id: newId(), kind: 'steam', issuer: issuer.trim() || 'Steam', label: label.trim(), secret: input, algorithm: 'SHA1', digits: 5, period: 30, note: '' };
+        account = { id: newId(), kind: 'steam', issuer: issuer.trim() || 'Steam', label: label.trim(), secret: input.replace(/\s/g, ''), algorithm: 'SHA1', digits: 5, period: 30, note: '' };
       } else {
         const d = Number(digits);
         const p = Number(period);

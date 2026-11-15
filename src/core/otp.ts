@@ -21,6 +21,20 @@ export interface Account {
   note: string;
 }
 
+/** Whether `x` has the shape and ranges of an Account. Does not prove the secret decodes. */
+export function isAccount(x: unknown): x is Account {
+  const a = x as Account | null;
+  return (
+    typeof a === 'object' && a !== null &&
+    typeof a.id === 'string' && (a.kind === 'totp' || a.kind === 'steam') &&
+    typeof a.issuer === 'string' && typeof a.label === 'string' && typeof a.secret === 'string' &&
+    (a.algorithm === 'SHA1' || a.algorithm === 'SHA256' || a.algorithm === 'SHA512') &&
+    Number.isInteger(a.digits) && a.digits >= 4 && a.digits <= 10 &&
+    Number.isInteger(a.period) && a.period >= 1 && a.period <= 86400 &&
+    typeof a.note === 'string'
+  );
+}
+
 const HASHES = { SHA1: sha1, SHA256: sha256, SHA512: sha512 };
 const STEAM_CHARS = '23456789BCDFGHJKMNPQRTVWXY';
 const STEAM_DIGITS = 5;
@@ -110,7 +124,8 @@ function parseIntParam(value: string | undefined, fallback: number, name: string
 export function parseUri(uri: string, id: string = newId()): Account {
   const text = uri.trim();
 
-  const steam = /^steam:\/\/([^/?#]+)/i.exec(text);
+  // Everything after the scheme is the secret: base64 secrets contain "/".
+  const steam = /^steam:\/\/(.+)$/i.exec(text);
   if (steam) {
     const secret = decodeComponent(steam[1]);
     decodeSteamSecret(secret);
@@ -163,14 +178,4 @@ export function parseUri(uri: string, id: string = newId()): Account {
     period: parseIntParam(query.get('period'), 30, 'period', 1, 86400),
     note: '',
   };
-}
-
-/** The inverse of parseUri, in the shape Proton Authenticator writes. */
-export function toUri(account: Account): string {
-  if (account.kind === 'steam') return `steam://${account.secret}`;
-  const label = encodeURIComponent(account.label);
-  const params = [`secret=${encodeURIComponent(account.secret)}`];
-  if (account.issuer) params.push(`issuer=${encodeURIComponent(account.issuer)}`);
-  params.push(`algorithm=${account.algorithm}`, `digits=${account.digits}`, `period=${account.period}`);
-  return `otpauth://totp/${label}?${params.join('&')}`;
 }
