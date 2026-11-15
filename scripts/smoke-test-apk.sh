@@ -12,8 +12,11 @@ APK=${1:?usage: scripts/smoke-test-apk.sh <apk>}
 PACKAGE=com.irondeveloper.iron2fa
 TIMEOUT_SECONDS=90
 
+# uiautomator exits 0 even when it gives up waiting for the UI to go idle and
+# writes nothing, so remove the last dump first: otherwise a failed dump hands
+# back the previous screen as if it were the current one.
 dump() {
-  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb shell cat /sdcard/ui.xml
+  adb shell 'rm -f /sdcard/ui.xml; uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml' 2>/dev/null
 }
 
 screen_texts() {
@@ -32,8 +35,11 @@ wait_for() {
   echo "--- on screen ---"
   screen_texts
   echo
-  echo "--- logcat ---"
-  adb logcat -d | tail -200
+  echo "--- app log ---"
+  adb logcat -d -s ReactNativeJS:V ReactNative:W AndroidRuntime:E | tail -120
+  echo "--- foreground ---"
+  adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
+  adb exec-out screencap -p > smoke-failure.png || true
   exit 1
 }
 
