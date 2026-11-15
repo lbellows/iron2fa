@@ -1,0 +1,1 @@
+• Fixed: an exported backup could reach the app you shared it with empty. The file is now kept in the app's private storage for 10 minutes instead of being deleted as soon as the share sheet closes.
