@@ -1,0 +1,6 @@
+• Fixed: a Steam account added with a base64 key could show wrong codes or disappear after the app restarted. Affected accounts are repaired when this version first opens.
+• Fixed: a Steam key typed in lowercase produced wrong codes.
+• Fixed: some account names changed after a restart.
+• Export now writes an Iron2FA backup file that keeps every account exactly as it is. Proton Authenticator exports still import; Proton cannot read the new file.
+• Import skips an account you already have even if it has a different name.
+• A storage error at startup offers "Try again" instead of only "Erase".

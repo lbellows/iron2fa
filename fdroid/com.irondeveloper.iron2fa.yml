@@ -7,5 +7,5 @@ AutoName: Iron2FA
 SourceCode: https://github.com/lbellows/iron2fa
 IssueTracker: https://github.com/lbellows/iron2fa/issues
 Changelog: https://github.com/lbellows/iron2fa/releases
-CurrentVersion: 1.0.0
-CurrentVersionCode: 13
+CurrentVersion: 1.0.1
+CurrentVersionCode: 23
