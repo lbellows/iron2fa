@@ -35,16 +35,34 @@ export async function saveTextFile(name: string, text: string): Promise<void> {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return;
   }
-  const [{ File, Paths }, Sharing] = await Promise.all([import('expo-file-system'), import('expo-sharing')]);
+  const [{ Directory, File, Paths }, Sharing] = await Promise.all([import('expo-file-system'), import('expo-sharing')]);
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device');
-  const file = new File(Paths.cache, name);
+  const dir = new Directory(Paths.cache, EXPORT_DIR);
+  if (!dir.exists) dir.create();
+  const file = new File(dir, name);
   file.create({ overwrite: true });
   file.write(text);
+  // Not deleted here: shareAsync returns when the share sheet closes, which is
+  // before the chosen app has read the file. removeOldExports() cleans up.
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/json' });
+}
+
+const EXPORT_DIR = 'export';
+const EXPORT_LIFETIME_MS = 10 * 60 * 1000;
+
+/**
+ * Delete exported files the receiving app has had time to read. Call at startup
+ * and whenever the app returns to the foreground.
+ */
+export async function removeOldExports(): Promise<void> {
+  if (Platform.OS === 'web') return;
   try {
-    await Sharing.shareAsync(file.uri, { mimeType: 'application/json' });
-  } finally {
-    try {
-      file.delete();
-    } catch {}
-  }
+    const { Directory, File, Paths } = await import('expo-file-system');
+    const dir = new Directory(Paths.cache, EXPORT_DIR);
+    if (!dir.exists) return;
+    const cutoff = Date.now() - EXPORT_LIFETIME_MS;
+    for (const entry of dir.list()) {
+      if (entry instanceof File && (entry.modificationTime ?? 0) <= cutoff) entry.delete();
+    }
+  } catch {}
 }

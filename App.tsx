@@ -1,8 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
-import { BackHandler, StyleSheet, Text, View } from 'react-native';
+import { AppState, BackHandler, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Account } from './src/core/otp';
+import { removeOldExports } from './src/files';
 import { Edit } from './src/ui/Edit';
 import { List } from './src/ui/List';
 import { Transfer } from './src/ui/Transfer';
@@ -48,6 +49,14 @@ export default function App() {
   useEffect(() => {
     start();
   }, [start]);
+
+  useEffect(() => {
+    removeOldExports();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') removeOldExports();
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
