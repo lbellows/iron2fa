@@ -1,7 +1,8 @@
 # Releasing Iron2FA
 
-A `v*` tag makes `.github/workflows/release.yml` build one signed, minified APK
-per ABI, check each is single-ABI, permission-free, signed and under 30 MB,
+A `v*` tag makes `.github/workflows/release.yml` build one minified APK per ABI,
+check each is single-ABI, permission-free and under 30 MB, sign it in a
+separate job that runs no repository or npm code,
 drive the x86_64 one on an emulator (`scripts/smoke-test-apk.sh` adds an account
 and restarts the app), and attach all three to a GitHub Release. The self-hosted
 F-Droid repo (<https://github.com/lbellows/fdroid>) collects them from there —

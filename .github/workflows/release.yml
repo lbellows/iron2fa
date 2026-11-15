@@ -4,6 +4,12 @@ name: Release APK
 # them to a GitHub Release. The self-hosted F-Droid repo pulls the APKs from
 # there.
 #
+# The build job runs a thousand npm packages' code (install scripts, Metro,
+# Gradle plugins), so it gets no secrets and produces an unsigned APK. A
+# separate job, which checks nothing out and installs nothing, signs it. Only
+# the publish job can write to the repository. Actions are pinned to commits,
+# because a tag can be moved to different code after it has been reviewed.
+#
 # Each ABI builds in its own job. The native compilation is per-architecture, so
 # three parallel jobs finish in well under the wall clock of one job doing all
 # three; the repo is public, so the extra runner minutes cost nothing.
@@ -27,7 +33,7 @@ on:
         default: arm64-v8a
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   # Self-imposed download-size ceiling for a single APK. A universal APK with
@@ -63,19 +69,19 @@ jobs:
       matrix:
         abi: ${{ fromJSON(needs.setup.outputs.abis) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           # The action's default set still includes the obsolete "tools", which
           # Google has removed from the SDK repository, so the default now fails.
@@ -98,28 +104,15 @@ jobs:
       - name: Verify committed android/ matches app.json
         run: npm run prebuild:check
 
-      - name: Decode release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set. See FDROID.md."
-            exit 1
-          fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-
-      - name: Build the ${{ matrix.abi }} APK
-        env:
-          IRON2FA_STORE_FILE: ${{ runner.temp }}/release.keystore
-          IRON2FA_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          IRON2FA_KEY_ALIAS: iron2fa
-          IRON2FA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      # No keystore is configured here, so plugins/withReleaseSigning.js leaves
+      # the release APK unsigned. The sign job signs it.
+      - name: Build the ${{ matrix.abi }} APK (unsigned)
         working-directory: android
         run: |
           ./gradlew assembleRelease --no-daemon \
             -PreactNativeArchitectures=${{ matrix.abi }}
 
-      - name: Check the APK is signed, single-ABI, permission-free and small enough
+      - name: Check the APK is single-ABI, permission-free and small enough
         env:
           ABI: ${{ matrix.abi }}
         run: |
@@ -136,7 +129,6 @@ jobs:
 
           echo "::group::$(basename "$APK")"
           "$BUILD_TOOLS/aapt2" dump badging "$APK" | grep -E '^package:|^native-code:'
-          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK"
 
           # AndroidX Core declares <applicationId>.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
           # for ContextCompat.registerReceiver. It is defined by this app, namespaced to
@@ -176,7 +168,65 @@ jobs:
             "dist/Iron2FA-${VERSION}-${{ matrix.abi }}.apk"
           ls -l dist
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-${{ matrix.abi }}
+          retention-days: 1
+          path: dist/*.apk
+          if-no-files-found: error
+
+  sign:
+    # The only job that sees the signing key. It runs nothing from the
+    # repository or from npm: just the runner image's own Android build tools on
+    # the APK the build job produced.
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: ${{ fromJSON(needs.setup.outputs.abis) }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-${{ matrix.abi }}
+          path: unsigned
+
+      - name: Sign the ${{ matrix.abi }} APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 secret is not set. See FDROID.md."
+            exit 1
+          fi
+          BUILD_TOOLS="$(ls -d "${ANDROID_HOME:-/nonexistent}"/build-tools/* 2>/dev/null | sort -V | tail -1)"
+          if [ ! -x "$BUILD_TOOLS/apksigner" ] || [ ! -x "$BUILD_TOOLS/zipalign" ]; then
+            echo "::error::The runner image has no Android build tools under ANDROID_HOME."
+            exit 1
+          fi
+          shopt -s nullglob
+          APKS=(unsigned/*.apk)
+          if [ "${#APKS[@]}" -ne 1 ]; then
+            echo "::error::Expected 1 unsigned APK, found ${#APKS[@]}."
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/release.keystore"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+
+          mkdir -p dist
+          OUT="dist/$(basename "${APKS[0]}")"
+          # apksigner requires alignment to be done first; signing after it keeps it.
+          "$BUILD_TOOLS/zipalign" -f -p 4 "${APKS[0]}" "$OUT"
+          "$BUILD_TOOLS/apksigner" sign --ks "$KEYSTORE" --ks-key-alias iron2fa \
+            --ks-pass env:STORE_PASSWORD --key-pass env:KEY_PASSWORD "$OUT"
+          rm -f "$OUT.idsig"
+          "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT"
+          ls -l dist
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apk-${{ matrix.abi }}
           retention-days: 1
@@ -189,18 +239,18 @@ jobs:
     # anything is published. The emulator is x86_64, so this can only run when
     # that ABI was built — an arm64-only dry run skips it and is checked on the
     # phone instead.
-    needs: [setup, build]
+    needs: [setup, sign]
     if: contains(needs.setup.outputs.abis, 'x86_64')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: apk-*
           merge-multiple: true
@@ -214,7 +264,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Launch the x86_64 APK on an emulator
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 30
           arch: x86_64
@@ -226,11 +276,13 @@ jobs:
           script: ./scripts/smoke-test-apk.sh "$(ls dist/*-x86_64.apk)"
 
   publish:
-    needs: [build, smoke-test]
+    needs: [sign, smoke-test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: apk-*
           merge-multiple: true
@@ -250,7 +302,7 @@ jobs:
           ls -l dist
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           files: dist/*.apk
           generate_release_notes: true
